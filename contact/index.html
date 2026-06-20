@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en" data-root="../" data-page="contact">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Book a Consultation — Brightwire Electric</title>
+  <meta name="description" content="Book a free electrical consultation with Brightwire Electric. Tell us about your project and we'll get back to you within one business day. Serving the Greater Springfield area.">
+  <meta name="theme-color" content="#0a1c30">
+  <link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="../assets/css/base.css">
+  <link rel="stylesheet" href="../assets/css/components.css">
+
+  <script defer src="../assets/js/partials.js"></script>
+  <script defer src="../assets/js/main.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header"></header>
+
+  <main id="main">
+
+    <!-- ============================ PAGE HERO ============================ -->
+    <section class="page-hero">
+      <div class="container">
+        <nav class="breadcrumb" aria-label="Breadcrumb">
+          <a href="../">Home</a> <span>/</span> <span>Contact</span>
+        </nav>
+        <h1 data-reveal>Book your free consultation</h1>
+        <p class="lead" data-reveal>Tell us a little about your project and the best time to reach you. We'll get back to you within one business day to confirm the details.</p>
+      </div>
+    </section>
+
+    <!-- ============================ FORM + INFO ============================ -->
+    <section class="section">
+      <div class="container contact-grid">
+
+        <!-- ---- Booking form ---- -->
+        <div data-reveal>
+          <div class="form-card">
+            <h2 style="font-size:1.5rem;margin-bottom:.4rem;">Request an appointment</h2>
+            <p style="margin-bottom:1.5rem;color:var(--muted-500);">Fields marked <span style="color:var(--amber-600)">*</span> are required.</p>
+
+            <!--
+              SKELETON / DEMO MODE: data-demo="true" makes the form show a
+              success message without a backend. To collect real submissions:
+                • Netlify:  add  netlify  name="booking"  to the <form>, remove data-demo,
+                            and add a hidden  <input name="form-name" value="booking">.
+                • Formspree: set action="https://formspree.io/f/XXXX" method="POST",
+                            remove data-demo.
+              See README.md → "Make the booking form live".
+            -->
+            <form id="bookingForm" data-demo="true" method="POST" action="#" novalidate>
+              <!-- Honeypot anti-spam field (hidden from people, bots fill it in) -->
+              <div class="visually-hidden" aria-hidden="true">
+                <label>Don't fill this in <input type="text" name="_gotcha" tabindex="-1" autocomplete="off"></label>
+              </div>
+
+              <div class="field-row">
+                <div class="field">
+                  <label for="name">Full name <span class="req">*</span></label>
+                  <input id="name" name="name" type="text" autocomplete="name" required placeholder="Jane Doe">
+                </div>
+                <div class="field">
+                  <label for="phone">Phone <span class="req">*</span></label>
+                  <input id="phone" name="phone" type="tel" autocomplete="tel" required placeholder="(555) 000-0000">
+                </div>
+              </div>
+
+              <div class="field">
+                <label for="email">Email <span class="req">*</span></label>
+                <input id="email" name="email" type="email" autocomplete="email" required placeholder="jane@example.com">
+              </div>
+
+              <div class="field">
+                <label for="service">What can we help with? <span class="req">*</span></label>
+                <select id="service" name="service" required>
+                  <option value="" selected disabled>Select a service…</option>
+                  <option>Residential wiring</option>
+                  <option>Panel upgrade</option>
+                  <option>Lighting design</option>
+                  <option>EV charger install</option>
+                  <option>Troubleshooting / repair</option>
+                  <option>Safety inspection</option>
+                  <option>Something else</option>
+                </select>
+              </div>
+
+              <div class="field-row">
+                <div class="field">
+                  <label for="date">Preferred date</label>
+                  <input id="date" name="preferred_date" type="date">
+                </div>
+                <div class="field">
+                  <label for="time">Preferred time</label>
+                  <select id="time" name="preferred_time">
+                    <option value="" selected disabled>Any time</option>
+                    <option>Morning (7am–12pm)</option>
+                    <option>Afternoon (12pm–5pm)</option>
+                    <option>Evening (after 5pm)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="field">
+                <label for="address">Service address / area</label>
+                <input id="address" name="address" type="text" autocomplete="street-address" placeholder="Street, suburb">
+              </div>
+
+              <div class="field">
+                <label for="message">Project details</label>
+                <textarea id="message" name="message" placeholder="Tell us a bit about the job, the property, and anything we should know…"></textarea>
+                <p class="form-note">The more detail you share, the more accurate our quote will be.</p>
+              </div>
+
+              <button class="btn btn--primary btn--lg btn--block" type="submit">Request My Consultation</button>
+
+              <!-- Success / error messages appear here -->
+              <p class="form-status" role="status" aria-live="polite"></p>
+            </form>
+          </div>
+        </div>
+
+        <!-- ---- Info sidebar ---- -->
+        <aside data-reveal>
+          <p class="eyebrow">Prefer to talk?</p>
+          <h2 style="font-size:1.6rem;margin-bottom:1.5rem;">Reach us directly</h2>
+
+          <div class="info-list">
+            <div class="info-item">
+              <span class="info-item__icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92Z"/></svg></span>
+              <div><h4>Call or text</h4><a href="tel:+15550123456">(555) 012-3456</a></div>
+            </div>
+            <div class="info-item">
+              <span class="info-item__icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg></span>
+              <div><h4>Email</h4><a href="mailto:hello@brightwireelectric.com">hello@brightwireelectric.com</a></div>
+            </div>
+            <div class="info-item">
+              <span class="info-item__icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg></span>
+              <div><h4>Service area</h4><p>The Greater Springfield area &amp; surrounding suburbs</p></div>
+            </div>
+            <div class="info-item">
+              <span class="info-item__icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+              <div><h4>Hours</h4><p>Mon–Fri 7am–6pm<br>Emergency service available 24/7</p></div>
+            </div>
+          </div>
+
+          <!-- Map / scheduler placeholder. Drop a Google Map embed or a
+               Calendly inline widget here when ready (see README). -->
+          <div class="img-ph" style="margin-top:1.75rem;border-radius:var(--radius);min-height:220px;">
+            <span class="img-ph__label">Map · or Calendly embed</span>
+          </div>
+        </aside>
+
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="site-footer"></footer>
+</body>
+</html>

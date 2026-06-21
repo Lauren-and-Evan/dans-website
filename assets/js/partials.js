@@ -11,13 +11,13 @@
 
 /* ----  ALL business details in one object — change these freely  --------- */
 const SITE = {
-  name: "Brightwire",
+  name: "Rahh",
   nameSuffix: "Electric",
-  owner: "Dan Whitfield",
+  owner: "Dan Caraco",
   phoneDisplay: "(555) 012-3456",
   phoneHref: "tel:+15550123456",
-  email: "hello@brightwireelectric.com",
-  area: "the Greater Springfield area",
+  email: "hello@rahhelectric.com",
+  area: "South Shore MA",
   hours: "Mon–Fri 7am–6pm · Emergency service 24/7",
   license: "Licensed & Insured · Lic. #EC-000000",
   social: {

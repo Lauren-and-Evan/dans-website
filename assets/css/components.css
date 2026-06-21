@@ -287,7 +287,7 @@ body { padding-top: var(--header-h); }
   background: rgba(245, 165, 36, .14);
   color: var(--amber-600);
 }
-.feature h3 { font-size: 1.15rem; margin-bottom: .3rem; }
+.feature h3 { font-size: 1.05rem; margin-bottom: .3rem; }
 .feature p { font-size: .98rem; }
 
 /* ---- Split (image + text) ---------------------------------------------- */

@@ -11,12 +11,12 @@
 
 /* ----  ALL business details in one object — change these freely  --------- */
 const SITE = {
-  name: "Rahh",
+  name: "Caraco",
   nameSuffix: "Electric",
   owner: "Dan Caraco",
   phoneDisplay: "(555) 012-3456",
   phoneHref: "tel:+15550123456",
-  email: "hello@rahhelectric.com",
+  email: "hello@caracolectric.com",
   area: "South Shore MA",
   hours: "Mon–Fri 7am–6pm · Emergency service 24/7",
   license: "Licensed & Insured · Lic. #EC-000000",

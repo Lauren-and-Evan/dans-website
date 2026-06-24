@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Brightwire Electric — main.js
+   Caraco Electric — main.js
    Sticky-header scroll state, mobile menu, scroll-reveal animations,
    and booking-form handling. No dependencies.
    ========================================================================== */

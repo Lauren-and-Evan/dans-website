@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Brightwire Electric — partials.js
+   Caraco Electric — partials.js
    The header and footer live HERE, in one place, and are injected into every
    page. Edit nav links, phone number, business details, etc. once below.
 

@@ -2,4 +2,4 @@ User-agent: *
 Allow: /
 
 # Once you have a live domain, add your sitemap here, e.g.:
-# Sitemap: https://www.brightwireelectric.com/sitemap.xml
+# Sitemap: https://www.caracoelectric.com/sitemap.xml

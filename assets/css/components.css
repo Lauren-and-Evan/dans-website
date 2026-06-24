@@ -360,8 +360,9 @@ body { padding-top: var(--header-h); }
   text-align: center;
   box-shadow: var(--shadow-lg);
 }
-.cta-band h2 { color: var(--white); }
-.cta-band p { color: var(--on-dark-muted); max-width: 52ch; margin-inline: auto; }
+.cta-band .eyebrow { margin-bottom: .85rem; }
+.cta-band h2 { color: var(--white); margin-bottom: .85rem; }
+.cta-band p { color: var(--on-dark-muted); max-width: 52ch; margin-inline: auto; margin-bottom: 1.75rem; }
 .cta-band .hero__cta { justify-content: center; }
 
 /* ---- Page hero (interior pages) ---------------------------------------- */

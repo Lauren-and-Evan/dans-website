@@ -93,24 +93,66 @@ Anywhere you see a placeholder block like this:
 
 ---
 
-## Make the booking form live
+## Square booking integration
 
-Right now the form on **Contact** is in demo mode (`data-demo="true"`): it validates
-and shows a success message but doesn't send anything. Two easy, free ways to receive
-real submissions:
+The **Contact** page lets a customer pick a date, see Dan's open time slots, and
+book a consultation. Booking happens through **Square**, and each booking also
+creates a **draft invoice** in Dan's Square account — created now, dated for the
+appointment day, with **no charge taken at booking** (Dan reviews the amount and
+sends it after the job).
 
-**Formspree** (works on any host)
-1. Create a free form at <https://formspree.io> and copy your form ID.
-2. In `contact/index.html`, on the `<form>` tag: set
-   `action="https://formspree.io/f/yourID" method="POST"` and **remove** `data-demo="true"`.
+### How it's wired
 
-**Netlify Forms** (if you deploy on Netlify — see below)
-1. On the `<form>` tag add `netlify name="booking"` and **remove** `data-demo="true"`.
-2. Add a hidden input inside the form: `<input type="hidden" name="form-name" value="booking">`.
-3. Submissions appear in your Netlify dashboard.
+Because a Square access token is a **secret** that must never appear in browser
+code, the Square calls run in two tiny serverless functions (Netlify Functions),
+not in the page itself:
 
-> Want scheduling instead of a form? Drop a **Calendly** inline embed into the
-> placeholder block in the Contact sidebar.
+```
+netlify/functions/
+├── availability.mjs   → GET  /api/availability?date=…   (open time slots)
+├── book.mjs           → POST /api/book                  (booking + draft invoice)
+└── lib/square.mjs     → shared Square REST helper (holds the token server-side)
+```
+
+The front-end (`assets/js/main.js`) calls those two endpoints. No npm install or
+build step — the functions use Node's built-in `fetch` against Square's REST API.
+
+### Demo mode (works today, before Dan's account exists)
+
+Until the environment variables below are set, both functions return safe sample
+data: the picker shows example slots and "booking" succeeds without touching any
+real account. So the page is fully clickable right now. **The moment the real keys
+are added in Netlify, it goes live — no code changes needed.**
+
+### Going live (once Dan shares his Square details)
+
+1. In the Square Developer Dashboard, create an app and copy its **access token**.
+2. Make sure Dan is set up in **Square Appointments** as a bookable team member
+   with a "Consultation" service.
+3. In **Netlify → Site settings → Environment variables**, add the values listed
+   in [`.env.example`](.env.example):
+   - `SQUARE_ACCESS_TOKEN`, `SQUARE_LOCATION_ID`, `SQUARE_TEAM_MEMBER_ID`,
+     `SQUARE_SERVICE_VARIATION_ID`
+   - set `SQUARE_ENVIRONMENT=production` when ready for real bookings (it defaults
+     to `sandbox` for testing).
+4. Redeploy. Done.
+
+> **Test it first in sandbox.** Keep `SQUARE_ENVIRONMENT=sandbox` and use Square's
+> sandbox token to confirm bookings and draft invoices appear before flipping to
+> production.
+
+### Run it locally with the functions
+
+The plain `py -m http.server` preview (above) serves the pages but **not** the
+`/api/...` functions — so the picker stays in demo mode locally. To exercise the
+functions, use the Netlify CLI:
+
+```powershell
+npm install -g netlify-cli
+netlify dev          # serves the site + functions, reading .env
+```
+
+(Copy `.env.example` to `.env` and fill in sandbox values first.)
 
 ---
 

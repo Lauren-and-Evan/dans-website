@@ -46,15 +46,15 @@
             <p style="margin-bottom:1.5rem;color:var(--muted-500);">Fields marked <span style="color:var(--amber-600)">*</span> are required.</p>
 
             <!--
-              SKELETON / DEMO MODE: data-demo="true" makes the form show a
-              success message without a backend. To collect real submissions:
-                • Netlify:  add  netlify  name="booking"  to the <form>, remove data-demo,
-                            and add a hidden  <input name="form-name" value="booking">.
-                • Formspree: set action="https://formspree.io/f/XXXX" method="POST",
-                            remove data-demo.
-              See README.md → "Make the booking form live".
+              SQUARE BOOKING: this form posts to the Netlify function at
+              /api/book (see netlify/functions/book.mjs), which creates the
+              booking with Dan and a DRAFT invoice in his Square account.
+              The available time slots come from /api/availability.
+              Until Dan's Square API keys are added to Netlify the functions
+              run in a safe "demo" mode, so the page stays fully clickable.
+              See README.md → "Square booking integration".
             -->
-            <form id="bookingForm" data-demo="true" method="POST" action="#" novalidate>
+            <form id="bookingForm" method="POST" action="/api/book" novalidate>
               <!-- Honeypot anti-spam field (hidden from people, bots fill it in) -->
               <div class="visually-hidden" aria-hidden="true">
                 <label>Don't fill this in <input type="text" name="_gotcha" tabindex="-1" autocomplete="off"></label>
@@ -90,20 +90,17 @@
                 </select>
               </div>
 
-              <div class="field-row">
-                <div class="field">
-                  <label for="date">Preferred date</label>
-                  <input id="date" name="preferred_date" type="date">
-                </div>
-                <div class="field">
-                  <label for="time">Preferred time</label>
-                  <select id="time" name="preferred_time">
-                    <option value="" selected disabled>Any time</option>
-                    <option>Morning (7am–12pm)</option>
-                    <option>Afternoon (12pm–5pm)</option>
-                    <option>Evening (after 5pm)</option>
-                  </select>
-                </div>
+              <div class="field">
+                <label for="date">Choose a date <span class="req">*</span></label>
+                <input id="date" name="preferred_date" type="date" required>
+              </div>
+
+              <!-- Time slots load from Square once a date is picked. -->
+              <div class="field" id="slotsField" hidden>
+                <span class="slots-label">Available times <span class="req">*</span></span>
+                <div id="slots" class="slot-grid" role="radiogroup" aria-label="Available appointment times"></div>
+                <p class="form-note" id="slotsNote">Pick a date to see available times.</p>
+                <input type="hidden" id="startAt" name="start_at">
               </div>
 
               <div class="field">
@@ -149,10 +146,13 @@
             </div>
           </div>
 
-          <!-- Map / scheduler placeholder. Drop a Google Map embed or a
-               Calendly inline widget here when ready (see README). -->
-          <div class="img-ph" style="margin-top:1.75rem;border-radius:var(--radius);min-height:220px;">
-            <span class="img-ph__label">Map · or Calendly embed</span>
+          <!-- Booking reassurance. Scheduling + invoicing is handled by Square. -->
+          <div class="booking-note" style="margin-top:1.75rem;">
+            <span class="booking-note__icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="m9 16 2 2 4-4"/></svg></span>
+            <div>
+              <h4 style="margin-bottom:.25rem;">Pick a time that suits you</h4>
+              <p style="color:var(--muted-500);font-size:.95rem;margin:0;">Choose a date above to see Dan's open slots. Booking is handled securely through Square — there's <strong>nothing to pay now</strong>. You'll only be invoiced after the work is done.</p>
+            </div>
           </div>
         </aside>
 

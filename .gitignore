@@ -1,2 +1,11 @@
 .claude
 .vscode
+
+# Secrets — never commit real Square tokens
+.env
+.env.*
+.env.example
+
+# Netlify local dev
+.netlify
+node_modules

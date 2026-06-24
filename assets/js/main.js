@@ -81,15 +81,23 @@
   }
 
   /* ----  Booking / contact form  ----------------------------------------
-     In skeleton mode (data-demo="true") the form validates and shows a
-     friendly success message without a backend. To go live, see README:
-     either remove data-demo and add a Formspree action, or deploy to
-     Netlify and add data-netlify="true".
+     Drives the Square booking flow against the Netlify functions:
+       • on date change  -> GET /api/availability  -> render time slots
+       • on submit       -> POST /api/book         -> create booking + draft
+                                                       invoice in Square
+     Both endpoints fall back to a friendly "demo" response until Dan's
+     Square API keys are configured, so the page works end-to-end today.
      --------------------------------------------------------------------- */
   function initForm() {
     const form = document.getElementById("bookingForm");
     if (!form) return;
+
     const status = form.querySelector(".form-status");
+    const dateInput = form.querySelector("#date");
+    const slotsField = form.querySelector("#slotsField");
+    const slotsBox = form.querySelector("#slots");
+    const slotsNote = form.querySelector("#slotsNote");
+    const startAtInput = form.querySelector("#startAt");
 
     const showStatus = (msg, ok) => {
       if (!status) return;
@@ -97,29 +105,108 @@
       status.className = "form-status " + (ok ? "is-success" : "is-error");
     };
 
-    form.addEventListener("submit", (e) => {
-      // Native HTML5 validation first
+    const timeFmt = new Intl.DateTimeFormat([], { hour: "numeric", minute: "2-digit" });
+
+    /* ----  Load available time slots for the chosen date  --------------- */
+    let slotReqId = 0;
+    async function loadSlots(date) {
+      const reqId = ++slotReqId; // guard against out-of-order responses
+      if (startAtInput) startAtInput.value = "";
+      slotsBox.innerHTML = "";
+      slotsField.hidden = false;
+      slotsNote.textContent = "Finding open times…";
+
+      try {
+        const res = await fetch("/api/availability?date=" + encodeURIComponent(date), {
+          headers: { Accept: "application/json" },
+        });
+        const data = await res.json();
+        if (reqId !== slotReqId) return; // a newer request superseded this one
+        if (!data.ok) throw new Error(data.error || "Could not load times.");
+
+        if (!data.slots || !data.slots.length) {
+          slotsNote.textContent = "No openings that day — please try another date, or call us.";
+          return;
+        }
+        renderSlots(data.slots);
+        slotsNote.textContent = "Select a time that works for you.";
+      } catch (err) {
+        if (reqId !== slotReqId) return;
+        slotsNote.textContent = "Couldn't load times right now. Please call us instead.";
+      }
+    }
+
+    function renderSlots(slots) {
+      slotsBox.innerHTML = "";
+      slots.forEach((iso) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "slot";
+        btn.setAttribute("role", "radio");
+        btn.setAttribute("aria-checked", "false");
+        btn.dataset.start = iso;
+        btn.textContent = timeFmt.format(new Date(iso));
+        btn.addEventListener("click", () => selectSlot(btn, iso));
+        slotsBox.appendChild(btn);
+      });
+    }
+
+    function selectSlot(btn, iso) {
+      slotsBox.querySelectorAll(".slot").forEach((b) => {
+        b.classList.remove("is-selected");
+        b.setAttribute("aria-checked", "false");
+      });
+      btn.classList.add("is-selected");
+      btn.setAttribute("aria-checked", "true");
+      if (startAtInput) startAtInput.value = iso;
+    }
+
+    if (dateInput) {
+      // Don't let people pick a date in the past.
+      dateInput.min = new Date().toISOString().slice(0, 10);
+      dateInput.addEventListener("change", () => {
+        if (dateInput.value) loadSlots(dateInput.value);
+      });
+    }
+
+    /* ----  Submit -> create the booking + draft invoice  --------------- */
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
       if (!form.checkValidity()) {
-        e.preventDefault();
         showStatus("Please fill in the required fields so we can reach you.", false);
         const firstInvalid = form.querySelector(":invalid");
         if (firstInvalid) firstInvalid.focus();
         return;
       }
-
-      // Skeleton demo mode — simulate a successful booking request
-      if (form.dataset.demo === "true") {
-        e.preventDefault();
-        const btn = form.querySelector('[type="submit"]');
-        if (btn) { btn.disabled = true; btn.dataset.label = btn.textContent; btn.textContent = "Sending…"; }
-        setTimeout(() => {
-          form.reset();
-          if (btn) { btn.disabled = false; btn.textContent = btn.dataset.label; }
-          showStatus("Thanks! Your consultation request has been received — we'll call you back within one business day.", true);
-          status.scrollIntoView({ behavior: "smooth", block: "center" });
-        }, 700);
+      if (!startAtInput || !startAtInput.value) {
+        showStatus("Please choose a date and an available time.", false);
+        if (slotsField) slotsField.scrollIntoView({ behavior: "smooth", block: "center" });
+        return;
       }
-      // Otherwise let the form submit to its real endpoint.
+
+      const btn = form.querySelector('[type="submit"]');
+      if (btn) { btn.disabled = true; btn.dataset.label = btn.textContent; btn.textContent = "Booking…"; }
+
+      try {
+        const payload = Object.fromEntries(new FormData(form).entries());
+        const res = await fetch(form.action, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data.error || "Booking failed.");
+
+        form.reset();
+        if (slotsField) slotsField.hidden = true;
+        showStatus("You're booked! Dan will see you at your chosen time. A confirmation will follow by email — no payment is needed now.", true);
+        status.scrollIntoView({ behavior: "smooth", block: "center" });
+      } catch (err) {
+        showStatus(err.message || "Something went wrong — please call us and we'll book you in.", false);
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = btn.dataset.label; }
+      }
     });
   }
 

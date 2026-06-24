@@ -408,6 +408,47 @@ body { padding-top: var(--header-h); }
 @media (max-width: 560px) { .field-row { grid-template-columns: 1fr; } }
 
 .form-note { font-size: .88rem; color: var(--muted-500); margin-top: .25rem; }
+
+/* Appointment time slots */
+.slots-label { font-weight: 600; color: var(--ink-700); font-size: .95rem; }
+.slots-label .req { color: var(--amber-600); }
+.slot-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: .55rem;
+  margin-top: .15rem;
+}
+.slot {
+  font: inherit;
+  font-weight: 600;
+  color: var(--ink-700);
+  padding: .6rem .5rem;
+  border: 1.5px solid var(--line-200);
+  border-radius: var(--radius-sm);
+  background: var(--surface-0);
+  cursor: pointer;
+  transition: border-color .15s var(--ease), background .15s var(--ease), color .15s var(--ease);
+}
+.slot:hover { border-color: var(--amber-400); }
+.slot:focus-visible { outline: none; box-shadow: 0 0 0 4px rgba(245, 165, 36, .18); border-color: var(--amber-500); }
+.slot.is-selected {
+  background: var(--amber-500);
+  border-color: var(--amber-500);
+  color: var(--navy-900);
+}
+
+/* "Pick a time" reassurance card in the contact sidebar */
+.booking-note {
+  display: flex;
+  gap: .9rem;
+  align-items: flex-start;
+  padding: 1.15rem 1.25rem;
+  background: var(--surface-50);
+  border: 1px solid var(--line-200);
+  border-radius: var(--radius);
+}
+.booking-note__icon { color: var(--amber-600); flex: 0 0 auto; margin-top: .15rem; }
+.booking-note h4 { font-size: 1.05rem; color: var(--ink-900); }
 .form-status {
   display: none;
   margin-top: 1rem; padding: 1rem 1.15rem;

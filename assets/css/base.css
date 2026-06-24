@@ -151,6 +151,9 @@ strong { color: var(--ink-700); font-weight: 600; }
   border-radius: 2px;
 }
 .section-head--center .eyebrow::before { display: none; }
+.hero .eyebrow::before { display: none; }
+.split__copy .eyebrow::before { display: none; }
+.cta-band .eyebrow::before { display: none; }
 
 .lead { font-size: 1.15rem; color: var(--ink-600); }
 .section--navy .lead, .section--navy p { color: var(--on-dark-muted); }

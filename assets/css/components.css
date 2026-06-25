@@ -246,11 +246,11 @@ body { padding-top: var(--header-h); }
   margin-bottom: 1.15rem;
 }
 .card__icon svg { width: 26px; height: 26px; }
-.card h3 { margin-bottom: .5rem; }
+.card h3 { margin-bottom: .3rem; }
 .card p { color: var(--ink-600); font-size: 1rem; }
 .card__link {
   display: inline-flex; align-items: center; gap: .35rem;
-  margin-top: 1.1rem; font-weight: 600; font-family: var(--font-head);
+  margin-top: 1rem; font-weight: 600; font-family: var(--font-head);
   font-size: .95rem;
 }
 .card__link svg { transition: transform .2s var(--ease); }
@@ -321,7 +321,7 @@ body { padding-top: var(--header-h); }
   margin-bottom: 1rem;
 }
 .step__num::before { content: counter(step, decimal-leading-zero); }
-.step h3 { font-size: 1.12rem; margin-bottom: .35rem; }
+.step h3 { font-size: 1.12rem; margin-bottom: .3rem; }
 .step p { font-size: .96rem; }
 @media (max-width: 900px) { .steps { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 520px) { .steps { grid-template-columns: 1fr; } }
@@ -374,9 +374,9 @@ body { padding-top: var(--header-h); }
   padding-block: clamp(3rem, 7vw, 5rem);
   text-align: center;
 }
-.page-hero h1 { color: var(--white); margin-bottom: 1rem; }
+.page-hero h1 { color: var(--white); margin-bottom: .3rem; }
 .page-hero p { color: var(--on-dark-muted); max-width: 60ch; margin-inline: auto; }
-.breadcrumb { display: flex; gap: .5rem; justify-content: center; font-size: .9rem; color: var(--on-dark-muted); margin-bottom: 1rem; }
+.breadcrumb { display: flex; gap: .5rem; justify-content: center; font-size: .9rem; color: var(--on-dark-muted); margin-bottom: .3rem; }
 .breadcrumb a { color: var(--on-dark-muted); }
 .breadcrumb a:hover { color: var(--amber-400); }
 
@@ -428,7 +428,7 @@ body { padding-top: var(--header-h); }
   display: grid; place-items: center;
   background: rgba(245, 165, 36, .14); color: var(--amber-600);
 }
-.info-item h4 { margin-bottom: .15rem; }
+.info-item h4 { margin-bottom: .3rem; }
 .info-item a, .info-item p { color: var(--ink-600); font-size: .98rem; }
 .info-item a:hover { color: var(--amber-600); }
 

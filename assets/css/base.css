@@ -130,6 +130,12 @@ strong { color: var(--ink-700); font-weight: 600; }
 /* Section header block (eyebrow + title + lead) */
 .section-head { max-width: 640px; margin-bottom: clamp(2rem, 4vw, 3.25rem); }
 .section-head--center { margin-inline: auto; text-align: center; }
+.section-head .eyebrow,
+.split__copy .eyebrow,
+.hero .eyebrow { margin-bottom: .3rem; }
+.section-head h2 + .lead,
+.split__copy h2 + .lead,
+.hero h1 + .lead { margin-top: .3rem; }
 
 .eyebrow {
   display: inline-flex;

@@ -360,8 +360,8 @@ body { padding-top: var(--header-h); }
   text-align: center;
   box-shadow: var(--shadow-lg);
 }
-.cta-band .eyebrow { margin-bottom: .85rem; }
-.cta-band h2 { color: var(--white); margin-bottom: .85rem; }
+.cta-band .eyebrow { margin-bottom: .3rem; }
+.cta-band h2 { color: var(--white); margin-bottom: .3rem; }
 .cta-band p { color: var(--on-dark-muted); max-width: 52ch; margin-inline: auto; margin-bottom: 1.75rem; }
 .cta-band .hero__cta { justify-content: center; }
 

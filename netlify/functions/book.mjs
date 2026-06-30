@@ -3,19 +3,24 @@
    --------------------------------------------------------------------------
    The whole booking flow, server-side, in one place:
 
-     1. Find or create the customer in Square (by email).
-     2. Create the BOOKING at the chosen time with Dan (Bookings API).
-     3. Create a DRAFT order for the job (Orders API).
-     4. Create a DRAFT invoice tied to that order (Invoices API):
+     1. Re-check the chosen slot is still open (prevents double-booking and
+        stops a tampered request from booking an unavailable time). This also
+        gives us the team member + service version Square wants.
+     2. Find or create the customer in Square (by email).
+     3. Create the BOOKING at the chosen time (Bookings API).
+     4. Create a DRAFT order for the chosen service (Orders API) — priced from
+        the catalog via catalog_object_id, so the amount is authoritative.
+     5. Create a DRAFT invoice tied to that order (Invoices API):
           • created now (Square stamps created_at automatically)
-          • sale_or_service_date  = the appointment date  ("transaction date")
-          • due_date              = the appointment date
+          • sale_or_service_date = the appointment date
+          • due_date            = the appointment date
           • automatic_payment_source = NONE  -> nobody is charged at booking.
-        It stays a DRAFT in Dan's dashboard, so he reviews/edits the line
-        items and the amount, then sends it to the customer after the job.
+        It stays a DRAFT in Dan's dashboard, so he reviews it and sends /
+        collects payment only after the work is done.
 
    Expected JSON body:
-     { name, email, phone, service?, address?, message?, start_at (ISO) }
+     { name, email, phone, service (variationId), service_name?,
+       start_at (ISO), address?, message? }
 
    Response:  { ok: true, demo?: true, bookingId?, invoiceId? }
    ========================================================================== */
@@ -24,6 +29,10 @@ import {
   config as squareConfig,
   isConfigured,
   square,
+  searchAvailability,
+  getServiceVariation,
+  resolveLocationId,
+  dayRange,
   idempotencyKey,
   json,
 } from "./lib/square.mjs";
@@ -49,10 +58,11 @@ export default async (req) => {
   const email = (body.email || "").trim();
   const phone = (body.phone || "").trim();
   const startAt = (body.start_at || "").trim();
+  const serviceId = (body.service || "").trim();
 
-  if (!name || !email || !phone || !startAt) {
+  if (!name || !email || !phone || !startAt || !serviceId) {
     return json(
-      { ok: false, error: "Please include your name, email, phone, and a chosen time." },
+      { ok: false, error: "Please include your name, email, phone, a service, and a chosen time." },
       400
     );
   }
@@ -67,50 +77,71 @@ export default async (req) => {
   const c = squareConfig();
 
   try {
-    // 1) Customer ---------------------------------------------------------
+    // 1) Re-validate the slot and capture the exact segments to book --------
+    const { startAt: rangeStart, endAt: rangeEnd } = dayRange(appointmentDate);
+    const availabilities = await searchAvailability({
+      serviceVariationId: serviceId,
+      startAt: rangeStart,
+      endAt: rangeEnd,
+    });
+    const chosen = availabilities.find(
+      (a) => new Date(a.start_at).getTime() === new Date(startAt).getTime()
+    );
+    if (!chosen || !chosen.appointment_segments?.length) {
+      return json(
+        { ok: false, error: "That time is no longer available — please pick another slot." },
+        409
+      );
+    }
+
+    const locationId = await resolveLocationId();
+
+    // 2) Customer ---------------------------------------------------------
     const customerId = await findOrCreateCustomer({ name, email, phone });
 
-    // 2) Booking ----------------------------------------------------------
+    // 3) Booking ----------------------------------------------------------
     const booking = await square("/v2/bookings", {
       method: "POST",
       body: {
         idempotency_key: idempotencyKey(),
         booking: {
-          location_id: c.locationId,
-          start_at: startAt,
+          location_id: locationId,
+          start_at: chosen.start_at,
           customer_id: customerId,
           customer_note: buildNote(body),
-          appointment_segments: [
-            {
-              team_member_id: c.teamMemberId,
-              service_variation_id: c.serviceVariationId,
-              ...(c.serviceVariationVersion
-                ? { service_variation_version: Number(c.serviceVariationVersion) }
-                : {}),
-            },
-          ],
+          appointment_segments: chosen.appointment_segments.map((seg) => ({
+            team_member_id: seg.team_member_id,
+            service_variation_id: seg.service_variation_id,
+            service_variation_version: seg.service_variation_version,
+          })),
         },
       },
     });
     const bookingId = booking.booking?.id;
 
-    // 3) Draft order (an invoice must reference an order) -----------------
+    // 4) Draft order (an invoice must reference an order) -----------------
+    //    Price is fetched server-side (authoritative). Variable-price /
+    //    quote services come back as null -> start the draft at $0 so the
+    //    order is valid, and Dan fills in the real amount before sending.
+    const variation = await getServiceVariation(serviceId);
+    const serviceName = body.service_name ? String(body.service_name) : variation.name || "Electrical services";
     const order = await square("/v2/orders", {
       method: "POST",
       body: {
         idempotency_key: idempotencyKey(),
         order: {
-          location_id: c.locationId,
+          location_id: locationId,
           customer_id: customerId,
           state: "DRAFT",
           line_items: [
             {
-              name: body.service ? `Electrical services — ${body.service}` : "Electrical services",
+              name: serviceName.slice(0, 500),
               quantity: "1",
-              // $0 placeholder: Dan sets the real amount on the draft invoice
-              // after the consultation. Charging happens later, not at booking.
-              base_price_money: { amount: 0, currency: c.currency },
-              note: "Amount to be finalized after consultation.",
+              base_price_money: {
+                amount: variation.priceAmount ?? 0,
+                currency: variation.priceCurrency || c.currency,
+              },
+              note: "Final amount confirmed after the work is completed.",
             },
           ],
         },
@@ -118,19 +149,19 @@ export default async (req) => {
     });
     const orderId = order.order?.id;
 
-    // 4) Draft invoice ----------------------------------------------------
+    // 5) Draft invoice ----------------------------------------------------
     const invoice = await square("/v2/invoices", {
       method: "POST",
       body: {
         idempotency_key: idempotencyKey(),
         invoice: {
-          location_id: c.locationId,
+          location_id: locationId,
           order_id: orderId,
           primary_recipient: { customer_id: customerId },
           delivery_method: "EMAIL",
-          title: "Electrical services",
+          title: body.service_name ? String(body.service_name).slice(0, 80) : "Electrical services",
           description: buildNote(body),
-          // "Transaction date" the customer asked for = when the work happens.
+          // "Transaction date" = when the work happens.
           sale_or_service_date: appointmentDate,
           accepted_payment_methods: { card: true, bank_account: false },
           payment_requests: [
@@ -166,23 +197,51 @@ async function findOrCreateCustomer({ name, email, phone }) {
   if (found.customers?.length) return found.customers[0].id;
 
   const [given, ...rest] = name.split(" ");
-  const created = await square("/v2/customers", {
-    method: "POST",
-    body: {
-      idempotency_key: idempotencyKey(),
-      given_name: given || name,
-      family_name: rest.join(" ") || undefined,
-      email_address: email,
-      phone_number: phone,
-    },
-  });
-  return created.customer.id;
+  const base = {
+    given_name: given || name,
+    family_name: rest.join(" ") || undefined,
+    email_address: email,
+  };
+
+  try {
+    const created = await square("/v2/customers", {
+      method: "POST",
+      body: { idempotency_key: idempotencyKey(), ...base, phone_number: normalizePhone(phone) || undefined },
+    });
+    return created.customer.id;
+  } catch (err) {
+    // Square can reject a phone it deems invalid (e.g. fake/555 numbers).
+    // Phone is optional and we keep it in the booking note, so retry without it.
+    const phoneRejected = err?.payload?.errors?.some((e) => e.field === "phone_number");
+    if (!phoneRejected) throw err;
+    const created = await square("/v2/customers", {
+      method: "POST",
+      body: { idempotency_key: idempotencyKey(), ...base },
+    });
+    return created.customer.id;
+  }
+}
+
+/** Best-effort E.164 phone, or null if we can't make a plausible one. */
+function normalizePhone(raw) {
+  if (!raw) return null;
+  const trimmed = String(raw).trim();
+  if (trimmed.startsWith("+")) {
+    const d = trimmed.slice(1).replace(/\D/g, "");
+    return d.length >= 8 && d.length <= 15 ? "+" + d : null;
+  }
+  const digits = trimmed.replace(/\D/g, "");
+  if (digits.length === 10) return "+1" + digits;                 // US/CA, no country code
+  if (digits.length === 11 && digits.startsWith("1")) return "+" + digits;
+  if (digits.length >= 8 && digits.length <= 15) return "+" + digits;
+  return null;
 }
 
 /** Roll the free-text job details into a single note for booking + invoice. */
 function buildNote(body) {
   return [
-    body.service && `Service: ${body.service}`,
+    body.service_name && `Service: ${body.service_name}`,
+    body.phone && `Phone: ${body.phone}`,
     body.address && `Address: ${body.address}`,
     body.message && `Details: ${body.message}`,
   ]

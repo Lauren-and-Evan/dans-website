@@ -79,27 +79,19 @@
               <div class="field">
                 <label for="service">What can we help with? <span class="req">*</span></label>
                 <select id="service" name="service" required>
-                  <option value="" selected disabled>Select a service…</option>
-                  <option>Residential wiring</option>
-                  <option>Panel upgrade</option>
-                  <option>Lighting design</option>
-                  <option>EV charger install</option>
-                  <option>Troubleshooting / repair</option>
-                  <option>Safety inspection</option>
-                  <option>Something else</option>
+                  <option value="" selected disabled>Loading services…</option>
                 </select>
+                <p class="form-note" id="serviceNote">Choose the service you need to see available times.</p>
               </div>
 
+              <!-- Calendar + time slots. Built by main.js from Square's
+                   availability. Days Dan has openings are highlighted; click a
+                   day to see the times, then click a time to select it. -->
               <div class="field">
-                <label for="date">Choose a date <span class="req">*</span></label>
-                <input id="date" name="preferred_date" type="date" required>
-              </div>
-
-              <!-- Time slots load from Square once a date is picked. -->
-              <div class="field" id="slotsField" hidden>
-                <span class="slots-label">Available times <span class="req">*</span></span>
+                <span class="slots-label">Choose a date &amp; time <span class="req">*</span></span>
+                <div id="calendar" class="cal" aria-label="Appointment calendar"></div>
                 <div id="slots" class="slot-grid" role="radiogroup" aria-label="Available appointment times"></div>
-                <p class="form-note" id="slotsNote">Pick a date to see available times.</p>
+                <p class="form-note" id="slotsNote">Choose a service, then pick a highlighted day to see open times.</p>
                 <input type="hidden" id="startAt" name="start_at">
               </div>
 
@@ -114,7 +106,7 @@
                 <p class="form-note">The more detail you share, the more accurate our quote will be.</p>
               </div>
 
-              <button class="btn btn--primary btn--lg btn--block" type="submit">Request My Consultation</button>
+              <button class="btn btn--primary btn--lg btn--block" type="submit">Book My Appointment</button>
 
               <!-- Success / error messages appear here -->
               <p class="form-status" role="status" aria-live="polite"></p>

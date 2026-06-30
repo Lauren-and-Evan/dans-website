@@ -82,19 +82,21 @@
 
   /* ----  Booking / contact form  ----------------------------------------
      Drives the Square booking flow against the Netlify functions:
-       • on date change  -> GET /api/availability  -> render time slots
-       • on submit       -> POST /api/book         -> create booking + draft
-                                                       invoice in Square
-     Both endpoints fall back to a friendly "demo" response until Dan's
-     Square API keys are configured, so the page works end-to-end today.
+       • on load          -> GET /api/services      -> fill the service list
+       • service + date   -> GET /api/availability   -> render time slots
+       • on submit        -> POST /api/book          -> create booking + draft
+                                                        invoice in Square
+     Every endpoint falls back to a friendly "demo" response until the Square
+     access token is configured, so the page works end-to-end today.
      --------------------------------------------------------------------- */
   function initForm() {
     const form = document.getElementById("bookingForm");
     if (!form) return;
 
     const status = form.querySelector(".form-status");
-    const dateInput = form.querySelector("#date");
-    const slotsField = form.querySelector("#slotsField");
+    const serviceSelect = form.querySelector("#service");
+    const serviceNote = form.querySelector("#serviceNote");
+    const calendarEl = form.querySelector("#calendar");
     const slotsBox = form.querySelector("#slots");
     const slotsNote = form.querySelector("#slotsNote");
     const startAtInput = form.querySelector("#startAt");
@@ -106,38 +108,168 @@
     };
 
     const timeFmt = new Intl.DateTimeFormat([], { hour: "numeric", minute: "2-digit" });
+    const moneyFmt = (amount, currency) =>
+      new Intl.NumberFormat([], { style: "currency", currency: currency || "USD" }).format(amount / 100);
 
-    /* ----  Load available time slots for the chosen date  --------------- */
-    let slotReqId = 0;
-    async function loadSlots(date) {
-      const reqId = ++slotReqId; // guard against out-of-order responses
+    /* ----  Populate the service dropdown from Square  ------------------- */
+    async function loadServices() {
+      try {
+        const res = await fetch("/api/services", { headers: { Accept: "application/json" } });
+        const data = await res.json();
+        if (!data.ok || !data.services || !data.services.length) throw new Error();
+
+        serviceSelect.innerHTML = '<option value="" selected disabled>Select a service…</option>';
+        data.services.forEach((s) => {
+          const opt = document.createElement("option");
+          opt.value = s.id;
+          opt.dataset.name = s.name;
+          const price = s.priceAmount != null ? " — " + moneyFmt(s.priceAmount, s.priceCurrency) : "";
+          opt.textContent = s.name + price;
+          serviceSelect.appendChild(opt);
+        });
+      } catch (err) {
+        serviceSelect.innerHTML = '<option value="" selected disabled>Couldn’t load services</option>';
+        if (serviceNote) serviceNote.textContent = "We couldn't load services right now — please call us to book.";
+      }
+    }
+
+    /* ----  Calendar + time slots (powered by Square availability)  ------ */
+    const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const MONTHS = ["January", "February", "March", "April", "May", "June",
+                    "July", "August", "September", "October", "November", "December"];
+
+    const pad = (n) => String(n).padStart(2, "0");
+    const ymd = (d) => d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+    const todayMidnight = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; };
+
+    let view = (() => { const d = todayMidnight(); return { year: d.getFullYear(), month: d.getMonth() }; })();
+    let slotsByDate = {};   // "YYYY-MM-DD" (local) -> [iso, …]
+    let selectedDate = "";  // "YYYY-MM-DD"
+    let monthLoaded = false;
+    let monthReqId = 0;
+
+    function clearSelection() {
+      selectedDate = "";
       if (startAtInput) startAtInput.value = "";
-      slotsBox.innerHTML = "";
-      slotsField.hidden = false;
-      slotsNote.textContent = "Finding open times…";
+      if (slotsBox) slotsBox.innerHTML = "";
+    }
+
+    function groupByLocalDate(slots) {
+      const map = {};
+      slots.forEach((iso) => {
+        const key = ymd(new Date(iso));
+        (map[key] = map[key] || []).push(iso);
+      });
+      Object.values(map).forEach((arr) => arr.sort());
+      return map;
+    }
+
+    /* Fetch a whole month of availability for the chosen service in one call. */
+    async function loadMonth() {
+      const serviceId = serviceSelect && serviceSelect.value;
+      monthLoaded = false;
+      slotsByDate = {};
+      clearSelection();
+
+      if (!serviceId) {
+        slotsNote.textContent = "Choose a service first to see open days.";
+        renderCalendar();
+        return;
+      }
+
+      const reqId = ++monthReqId;
+      const first = new Date(view.year, view.month, 1);
+      const last = new Date(view.year, view.month + 1, 0);
+      const from = ymd(first < todayMidnight() ? todayMidnight() : first);
+      const to = ymd(last);
+      slotsNote.textContent = "Finding Dan's open times…";
+      renderCalendar();
 
       try {
-        const res = await fetch("/api/availability?date=" + encodeURIComponent(date), {
-          headers: { Accept: "application/json" },
-        });
+        const qs = "?from=" + from + "&to=" + to + "&serviceId=" + encodeURIComponent(serviceId);
+        const res = await fetch("/api/availability" + qs, { headers: { Accept: "application/json" } });
         const data = await res.json();
-        if (reqId !== slotReqId) return; // a newer request superseded this one
+        if (reqId !== monthReqId) return; // superseded by a newer month/service
         if (!data.ok) throw new Error(data.error || "Could not load times.");
 
-        if (!data.slots || !data.slots.length) {
-          slotsNote.textContent = "No openings that day — please try another date, or call us.";
-          return;
+        slotsByDate = groupByLocalDate(data.slots || []);
+        monthLoaded = true;
+        renderCalendar();
+
+        const firstOpen = Object.keys(slotsByDate).sort()[0];
+        if (firstOpen) {
+          selectDay(firstOpen);
+          slotsNote.textContent = "Pick a time that works for you.";
+        } else {
+          slotsNote.textContent = "No openings this month — try the next month, or call us.";
         }
-        renderSlots(data.slots);
-        slotsNote.textContent = "Select a time that works for you.";
       } catch (err) {
-        if (reqId !== slotReqId) return;
+        if (reqId !== monthReqId) return;
+        monthLoaded = true;
+        renderCalendar();
         slotsNote.textContent = "Couldn't load times right now. Please call us instead.";
       }
     }
 
-    function renderSlots(slots) {
+    /* ----  Render the month grid  -------------------------------------- */
+    function renderCalendar() {
+      if (!calendarEl) return;
+      const today = todayMidnight();
+      const startDow = new Date(view.year, view.month, 1).getDay();
+      const daysInMonth = new Date(view.year, view.month + 1, 0).getDate();
+      const atCurrentMonth = view.year === today.getFullYear() && view.month === today.getMonth();
+
+      let html = '<div class="cal__head">';
+      html += '<button type="button" class="cal__nav" data-nav="-1" aria-label="Previous month"' +
+              (atCurrentMonth ? " disabled" : "") + ">‹</button>";
+      html += '<span class="cal__title">' + MONTHS[view.month] + " " + view.year + "</span>";
+      html += '<button type="button" class="cal__nav" data-nav="1" aria-label="Next month">›</button>';
+      html += "</div>";
+
+      html += '<div class="cal__grid">';
+      WEEKDAYS.forEach((w) => { html += '<span class="cal__dow">' + w + "</span>"; });
+      for (let i = 0; i < startDow; i++) html += '<span class="cal__blank"></span>';
+
+      for (let day = 1; day <= daysInMonth; day++) {
+        const d = new Date(view.year, view.month, day);
+        const key = ymd(d);
+        const isPast = d < today;
+        const hasSlots = !!(slotsByDate[key] && slotsByDate[key].length);
+
+        let cls = "cal__day";
+        let disabled = false;
+        if (isPast) { cls += " cal__day--muted"; disabled = true; }
+        else if (monthLoaded) {
+          if (hasSlots) cls += " cal__day--has";
+          else { cls += " cal__day--muted"; disabled = true; }
+        }
+        if (key === ymd(today)) cls += " cal__day--today";
+        if (key === selectedDate) cls += " cal__day--selected";
+
+        html += '<button type="button" class="' + cls + '" data-day="' + key + '"' +
+                (disabled ? " disabled" : "") +
+                (key === selectedDate ? ' aria-current="date"' : "") + ">" + day + "</button>";
+      }
+      html += "</div>";
+      calendarEl.innerHTML = html;
+    }
+
+    /* ----  Day + time selection  --------------------------------------- */
+    function selectDay(key) {
+      if (!(serviceSelect && serviceSelect.value)) {
+        slotsNote.textContent = "Choose a service first to see open times.";
+        return;
+      }
+      selectedDate = key;
+      if (startAtInput) startAtInput.value = "";
+      renderCalendar();
+      renderTimes(key);
+    }
+
+    function renderTimes(key) {
       slotsBox.innerHTML = "";
+      const slots = slotsByDate[key] || [];
+      if (!slots.length) { slotsNote.textContent = "No openings that day — try another."; return; }
       slots.forEach((iso) => {
         const btn = document.createElement("button");
         btn.type = "button";
@@ -161,12 +293,25 @@
       if (startAtInput) startAtInput.value = iso;
     }
 
-    if (dateInput) {
-      // Don't let people pick a date in the past.
-      dateInput.min = new Date().toISOString().slice(0, 10);
-      dateInput.addEventListener("change", () => {
-        if (dateInput.value) loadSlots(dateInput.value);
+    /* ----  Wire up calendar clicks + service changes  ------------------ */
+    if (calendarEl) {
+      calendarEl.addEventListener("click", (e) => {
+        const nav = e.target.closest("[data-nav]");
+        if (nav && !nav.disabled) {
+          const m = view.month + Number(nav.dataset.nav);
+          view = { year: view.year + Math.floor(m / 12), month: ((m % 12) + 12) % 12 };
+          loadMonth();
+          return;
+        }
+        const day = e.target.closest("[data-day]");
+        if (day && !day.disabled) selectDay(day.dataset.day);
       });
+      renderCalendar(); // show the month immediately, before a service is picked
+    }
+
+    if (serviceSelect) {
+      loadServices();
+      serviceSelect.addEventListener("change", () => { loadMonth(); });
     }
 
     /* ----  Submit -> create the booking + draft invoice  --------------- */
@@ -181,7 +326,7 @@
       }
       if (!startAtInput || !startAtInput.value) {
         showStatus("Please choose a date and an available time.", false);
-        if (slotsField) slotsField.scrollIntoView({ behavior: "smooth", block: "center" });
+        if (calendarEl) calendarEl.scrollIntoView({ behavior: "smooth", block: "center" });
         return;
       }
 
@@ -190,6 +335,10 @@
 
       try {
         const payload = Object.fromEntries(new FormData(form).entries());
+        // Send the human-readable service name too (for the invoice title/note).
+        const picked = serviceSelect && serviceSelect.selectedOptions[0];
+        if (picked) payload.service_name = picked.dataset.name || picked.textContent;
+
         const res = await fetch(form.action, {
           method: "POST",
           headers: { "Content-Type": "application/json", Accept: "application/json" },
@@ -199,7 +348,8 @@
         if (!res.ok || !data.ok) throw new Error(data.error || "Booking failed.");
 
         form.reset();
-        if (slotsField) slotsField.hidden = true;
+        slotsByDate = {}; monthLoaded = false; clearSelection(); renderCalendar();
+        if (serviceSelect) loadServices(); // restore the populated list after reset
         showStatus("You're booked! Dan will see you at your chosen time. A confirmation will follow by email — no payment is needed now.", true);
         status.scrollIntoView({ behavior: "smooth", block: "center" });
       } catch (err) {

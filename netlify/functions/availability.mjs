@@ -1,62 +1,66 @@
 /* ==========================================================================
-   GET /api/availability?date=YYYY-MM-DD
+   GET /api/availability?serviceId=<variationId>&...
+       ...&date=YYYY-MM-DD                 (one day)
+       ...&from=YYYY-MM-DD&to=YYYY-MM-DD   (a range, e.g. a whole month)
    --------------------------------------------------------------------------
-   Returns the open appointment slots for a given day by asking Square's
-   Bookings "search availability" endpoint. The browser uses these to draw
-   the time-slot buttons on the Contact page.
+   Returns the open appointment slots for a service over a day or a range, by
+   asking Square's Bookings "search availability" endpoint. The calendar uses
+   the range form to mark which days have openings; clicking a day shows that
+   day's times. The server re-derives the team member + service version at
+   booking time, so the client only needs the slot's ISO start time.
 
-   Response shape:  { ok: true, demo?: true, slots: ["2026-07-01T14:00:00Z", …] }
+   Response: { ok, demo?, slots: ["2026-07-02T13:00:00Z", …] }
    ========================================================================== */
 
-import { config as squareConfig, isConfigured, square, json } from "./lib/square.mjs";
+import { isConfigured, searchAvailability, json } from "./lib/square.mjs";
 
-// Netlify Functions v2 route binding.
 export const config = { path: "/api/availability" };
+
+const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+const MIN_RANGE_MS = 60 * 60 * 1000;           // Square requires >= 1 hour
+const MAX_RANGE_MS = 31 * 24 * 60 * 60 * 1000; // Square allows up to 32 days
 
 export default async (req) => {
   const url = new URL(req.url);
-  const date = url.searchParams.get("date"); // YYYY-MM-DD
+  const serviceId = url.searchParams.get("serviceId");
+  const date = url.searchParams.get("date");
+  let from = url.searchParams.get("from") || date;
+  let to = url.searchParams.get("to") || date;
 
-  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-    return json({ ok: false, error: "A valid ?date=YYYY-MM-DD is required." }, 400);
+  if (!from || !to || !DAY_RE.test(from) || !DAY_RE.test(to)) {
+    return json({ ok: false, error: "Provide ?date=YYYY-MM-DD or ?from=&to= dates." }, 400);
   }
 
   // ---- Demo mode: no Square credentials yet -> return sample slots --------
   if (!isConfigured()) {
-    return json({ ok: true, demo: true, slots: demoSlots(date) });
+    return json({ ok: true, demo: true, slots: demoSlots(from, to) });
   }
 
-  // ---- Live: search Square availability for that day ----------------------
-  const c = squareConfig();
-  // Square requires the search window to start no earlier than "now".
-  const now = new Date();
-  const dayStart = new Date(`${date}T00:00:00Z`);
-  const startAt = dayStart > now ? dayStart : now;
-  const endAt = new Date(`${date}T23:59:59Z`);
+  if (!serviceId) {
+    return json({ ok: false, error: "Please choose a service first." }, 400);
+  }
 
+  // ---- Live: clamp the window (>= now, <= ~32 days) and search ------------
   try {
-    const data = await square("/v2/bookings/availability/search", {
-      method: "POST",
-      body: {
-        query: {
-          filter: {
-            start_at_range: {
-              start_at: startAt.toISOString(),
-              end_at: endAt.toISOString(),
-            },
-            location_id: c.locationId,
-            segment_filters: [
-              {
-                service_variation_id: c.serviceVariationId,
-                team_member_id_filter: { any: [c.teamMemberId] },
-              },
-            ],
-          },
-        },
-      },
-    });
+    const now = new Date();
+    let start = new Date(`${from}T00:00:00Z`);
+    if (start < now) start = now;
+    let end = new Date(`${to}T23:59:59Z`);
+    if (end <= start) return json({ ok: true, slots: [] }); // window already passed
+    // Square requires the search window to be >= 1 hour and <= ~32 days.
+    if (end.getTime() - start.getTime() < MIN_RANGE_MS) {
+      end = new Date(start.getTime() + MIN_RANGE_MS);
+    }
+    if (end.getTime() - start.getTime() > MAX_RANGE_MS) {
+      end = new Date(start.getTime() + MAX_RANGE_MS);
+    }
 
-    const slots = (data.availabilities || []).map((a) => a.start_at);
+    const availabilities = await searchAvailability({
+      serviceVariationId: serviceId,
+      startAt: start.toISOString(),
+      endAt: end.toISOString(),
+    });
+    const slots = availabilities.map((a) => a.start_at);
     return json({ ok: true, slots });
   } catch (err) {
     console.error("availability error:", err.status, err.message, err.payload);
@@ -67,10 +71,18 @@ export default async (req) => {
   }
 };
 
-/** A believable set of half-day slots so the picker is demoable before go-live. */
-function demoSlots(date) {
+/** Believable slots across a date range so the calendar is demoable pre-go-live. */
+function demoSlots(from, to) {
   const hours = [8, 9, 10, 11, 13, 14, 15];
-  // Skip Sundays in the demo, just like a real schedule might.
-  if (new Date(`${date}T12:00:00Z`).getUTCDay() === 0) return [];
-  return hours.map((h) => `${date}T${String(h).padStart(2, "0")}:00:00Z`);
+  const out = [];
+  const start = new Date(`${from}T00:00:00Z`);
+  const end = new Date(`${to}T00:00:00Z`);
+  const today = new Date(); today.setUTCHours(0, 0, 0, 0);
+  for (let d = new Date(start); d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
+    if (d < today) continue;            // no past days
+    if (d.getUTCDay() === 0) continue;  // skip Sundays
+    const ymd = d.toISOString().slice(0, 10);
+    hours.forEach((h) => out.push(`${ymd}T${String(h).padStart(2, "0")}:00:00Z`));
+  }
+  return out;
 }

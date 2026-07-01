@@ -132,7 +132,7 @@ export default async (req) => {
         order: {
           location_id: locationId,
           customer_id: customerId,
-          state: "DRAFT",
+          state: "OPEN",
           line_items: [
             {
               name: serviceName.slice(0, 500),

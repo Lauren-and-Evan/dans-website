@@ -6,7 +6,7 @@ A fast, professional marketing + booking website for a freelance electrician.
 Built as a **plain static site** — just HTML, CSS and JavaScript. No build tools,
 no frameworks, no dependencies to install. Open it, edit it, deploy it for free.
 
-> **Note:** "Caraco Electric", "Dan Whitfield", the phone number, email and
+> **Note:** "Caraco Electric", "Dan Caraco", the phone number, email and
 > license number are all **placeholders**. See [Customizing](#customizing) for the
 > handful of places to swap in the real details.
 

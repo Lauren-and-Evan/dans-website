@@ -80,6 +80,33 @@
     items.forEach((el) => io.observe(el));
   }
 
+  /* ----  Phone field: cap the number of DIGITS, keep formatting + intl code  ---- */
+  function initPhoneInput() {
+    const phone = document.getElementById("phone");
+    if (!phone) return;
+
+    phone.addEventListener("input", () => {
+      // A plain US number is 10 digits. An international number (leading "+")
+      // can be up to 15 digits total (the E.164 max), which leaves room for the
+      // country code. We count ONLY digits, so spaces, (), and - that a person or
+      // autofill adds never eat into the limit.
+      const isIntl = phone.value.trimStart().startsWith("+");
+      const maxDigits = isIntl ? 15 : 10;
+
+      let digits = 0;
+      let out = "";
+      for (const ch of phone.value) {
+        if (ch >= "0" && ch <= "9") {
+          if (digits < maxDigits) { out += ch; digits++; } // keep digits up to the cap
+          // any digit beyond the cap is dropped
+        } else {
+          out += ch;                                        // keep +, spaces, (), -
+        }
+      }
+      if (out !== phone.value) phone.value = out;
+    });
+  }
+
   /* ----  Booking / contact form  ----------------------------------------
      Drives the Square booking flow against the Netlify functions:
        • on load          -> GET /api/services      -> fill the service list
@@ -92,6 +119,8 @@
   function initForm() {
     const form = document.getElementById("bookingForm");
     if (!form) return;
+
+    initPhoneInput();
 
     const status = form.querySelector(".form-status");
     const serviceSelect = form.querySelector("#service");

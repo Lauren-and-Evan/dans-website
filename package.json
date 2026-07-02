@@ -10,7 +10,8 @@
   "scripts": {
     "dev": "netlify dev",
     "preview": "py -m http.server 8000",
-    "check": "node --check netlify/functions/book.mjs && node --check netlify/functions/availability.mjs && node --check netlify/functions/lib/square.mjs && node --check assets/js/main.js"
+    "test": "node --test tests/book.test.mjs",
+    "check": "node --check netlify/functions/book.mjs && node --check netlify/functions/availability.mjs && node --check netlify/functions/services.mjs && node --check netlify/functions/lib/square.mjs && node --check assets/js/main.js && node --check assets/js/partials.js"
   },
   "devDependencies": {
     "netlify-cli": "^17.0.0"

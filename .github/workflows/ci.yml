@@ -1,0 +1,41 @@
+# =============================================================================
+# CI — runs on every pull request into main (and on main itself).
+#
+# This is HALF of the "don't break production" gate. The other half is a
+# branch ruleset in GitHub (Settings -> Rules -> Rulesets) that:
+#   1. requires a pull request before merging into main, and
+#   2. requires the "Syntax + booking tests" check below to pass.
+# Without that ruleset, a failing run shows a red X but blocks nothing.
+# =============================================================================
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  checks:
+    name: Syntax + booking tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+
+      # Node 20 on purpose: it's the version the Netlify functions run on in
+      # production (netlify.toml -> NODE_VERSION = 20). Testing on the prod
+      # version catches "works on my machine's newer Node" bugs.
+      - name: Set up Node 20 (matches production runtime)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # No `npm install` needed: the checks and unit tests are dependency-free
+      # by design. The only devDependency (netlify-cli) is for local dev and
+      # would add minutes of install time here for nothing.
+      - name: Syntax-check all site + function JavaScript
+        run: npm run check
+
+      - name: Run the booking unit tests (11 outcome scenarios)
+        run: npm test

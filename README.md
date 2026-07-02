@@ -6,7 +6,7 @@ A fast, professional marketing + booking website for a freelance electrician.
 Built as a **plain static site** — just HTML, CSS and JavaScript. No build tools,
 no frameworks, no dependencies to install. Open it, edit it, deploy it for free.
 
-> **Note:** "Caraco Electric", "Dan Whitfield", the phone number, email and
+> **Note:** "Caraco Electric", "Dan Caraco", the phone number, email and
 > license number are all **placeholders**. See [Customizing](#customizing) for the
 > handful of places to swap in the real details.
 
@@ -93,24 +93,123 @@ Anywhere you see a placeholder block like this:
 
 ---
 
-## Make the booking form live
+## Square booking integration
 
-Right now the form on **Contact** is in demo mode (`data-demo="true"`): it validates
-and shows a success message but doesn't send anything. Two easy, free ways to receive
-real submissions:
+On the **Contact** page a customer: ① picks a **service** (pulled live from
+Square), ② picks a **date**, ③ picks an open **time slot**, and ④ books. Each
+booking creates, in the owner's Square account:
 
-**Formspree** (works on any host)
-1. Create a free form at <https://formspree.io> and copy your form ID.
-2. In `contact/index.html`, on the `<form>` tag: set
-   `action="https://formspree.io/f/yourID" method="POST"` and **remove** `data-demo="true"`.
+- a **booking/appointment** at the chosen time with the right staff member, and
+- a **draft invoice** for that service — created now, dated to the appointment
+  day, with **no money taken at booking**. The owner reviews it and sends /
+  collects payment **after** the work is done.
 
-**Netlify Forms** (if you deploy on Netlify — see below)
-1. On the `<form>` tag add `netlify name="booking"` and **remove** `data-demo="true"`.
-2. Add a hidden input inside the form: `<input type="hidden" name="form-name" value="booking">`.
-3. Submissions appear in your Netlify dashboard.
+### How it's wired (and why it's secure)
 
-> Want scheduling instead of a form? Drop a **Calendly** inline embed into the
-> placeholder block in the Contact sidebar.
+A Square **access token** is a secret that must never appear in browser code.
+So all Square calls happen in small **Netlify Functions** (server-side), never in
+the page. The token lives only in Netlify's encrypted env vars:
+
+```
+netlify/functions/
+├── services.mjs       → GET  /api/services                 (bookable services)
+├── availability.mjs   → GET  /api/availability?date&serviceId  (open slots)
+├── book.mjs           → POST /api/book                      (booking + draft invoice)
+└── lib/square.mjs     → shared Square REST helper (holds the token server-side)
+```
+
+The browser only ever sees service names, prices, and open times — never the
+token. The site auto-discovers the **location**, **staff member**, and **service
+version** from Square, so the only secret you must provide is the access token.
+No build step — the functions use Node's built-in `fetch`.
+
+### Demo mode
+
+Until `SQUARE_ACCESS_TOKEN` is set, every function returns safe **sample** data
+(example services + slots, and a fake-success booking). The page is fully
+clickable with zero credentials. The moment the token is set, it goes live —
+**no code changes needed.**
+
+---
+
+### Step 1 — Prerequisites in Square (one-time, in the owner's account)
+
+1. Turn on **Square Appointments** for the business location.
+2. Create one or more **Services** (each with a price and duration). These are
+   exactly what the website's service dropdown will show.
+3. Make sure the owner is a **bookable staff member** assigned to those services.
+
+> Do this in **both** Sandbox and Production if you want sandbox to mirror live.
+> The Sandbox test account has its own separate dashboard (see Step 4).
+
+### Step 2 — Get the Access Token (NOT the App ID/Secret)
+
+1. Go to the **Square Developer Dashboard** → your application.
+2. Open **Credentials**.
+3. Copy the **Access token**:
+   - **Sandbox** tab → *Sandbox Access Token* (for testing), and/or
+   - **Production** tab → *Production Access Token* (for the live site).
+
+> ⚠️ The **Application ID** and **Application Secret** are for OAuth and are **not
+> used here** — don't put them in the env vars. We only need the *Access token*.
+> Treat the token like a password: anyone with it can act on the account.
+
+### Step 3 — Store the secrets in Netlify (the secure, recommended way)
+
+1. In Netlify: **Site configuration → Environment variables → Add a variable →
+   Add a single variable**.
+2. Add **`SQUARE_ACCESS_TOKEN`**. When prompted, mark it as **"Contains secret
+   values"** so Netlify hides it and never prints it in build logs.
+3. Use **deploy-context-specific values** (the "Different value for each deploy
+   context" option) so testing never touches the live account:
+   - **Production** → the *Production* access token
+   - **Deploy Previews** and **Branch deploys** → the *Sandbox* access token
+4. Add **`SQUARE_ENVIRONMENT`** the same way:
+   - **Production** → `production`
+   - **Deploy Previews / Branch deploys** → `sandbox`
+5. (Optional) `SQUARE_LOCATION_ID` if the account has multiple locations and you
+   want to pin one; otherwise leave it unset and the first active location is used.
+6. **Redeploy** (Deploys → Trigger deploy → Deploy site) so the new vars load.
+
+This keeps secrets **out of Git entirely** — they live only in Netlify, encrypted,
+scoped per environment. `.env` is git-ignored so a real token can never be
+committed.
+
+### Step 4 — Test in Sandbox before going live
+
+1. Get a **Sandbox test seller account** from the Developer Dashboard
+   (*Sandbox → Test accounts → Open* the dashboard) and set up Appointments +
+   services there, exactly like Step 1.
+2. Run the site locally against sandbox (next section), or use Netlify Deploy
+   Previews (which you scoped to sandbox in Step 3).
+3. Make a test booking on the Contact page. Then confirm in the **sandbox**
+   Square dashboard that:
+   - the **appointment** appears in Appointments, and
+   - a **draft invoice** appears under Invoices (unsent, no payment taken).
+4. Only once that's clean, rely on the Production context for real bookings.
+
+### Step 5 — Run it locally (optional, for sandbox testing)
+
+The plain `py -m http.server` preview serves the pages but **not** the `/api/...`
+functions — so the picker stays in demo mode. To run the real functions locally,
+use the Netlify CLI (already a dev dependency — `npm install` once):
+
+```powershell
+# 1. one-time: install deps (gets netlify-cli)
+npm install
+
+# 2. create a local .env with your SANDBOX values
+copy .env.example .env
+#    then edit .env and paste the Sandbox Access Token + SQUARE_ENVIRONMENT=sandbox
+
+# 3. start the site + functions (reads .env automatically)
+npm run dev        # = netlify dev  →  http://localhost:8888
+```
+
+Open <http://localhost:8888/contact/> and make a test booking. `.env` is
+git-ignored, so your sandbox token stays off GitHub.
+
+> Tip: `npm run check` syntax-checks all the function files in one go.
 
 ---
 

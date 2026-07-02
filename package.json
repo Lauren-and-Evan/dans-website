@@ -1,0 +1,19 @@
+{
+  "name": "caraco-electric-website",
+  "version": "1.0.0",
+  "description": "Static marketing + booking site for a freelance electrician, with Square booking via Netlify Functions.",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "dev": "netlify dev",
+    "preview": "py -m http.server 8000",
+    "test": "node --test tests/book.test.mjs",
+    "check": "node --check netlify/functions/book.mjs && node --check netlify/functions/availability.mjs && node --check netlify/functions/services.mjs && node --check netlify/functions/lib/square.mjs && node --check assets/js/main.js && node --check assets/js/partials.js"
+  },
+  "devDependencies": {
+    "netlify-cli": "^17.0.0"
+  }
+}

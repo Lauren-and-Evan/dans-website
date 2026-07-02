@@ -130,6 +130,16 @@ strong { color: var(--ink-700); font-weight: 600; }
 /* Section header block (eyebrow + title + lead) */
 .section-head { max-width: 640px; margin-bottom: clamp(2rem, 4vw, 3.25rem); }
 .section-head--center { margin-inline: auto; text-align: center; }
+.section-head .eyebrow,
+.split__copy .eyebrow,
+.hero .eyebrow,
+.text-center .eyebrow,
+.contact-grid .eyebrow { margin-bottom: .3rem; }
+.section-head h2 + .lead,
+.split__copy h2 + .lead,
+.hero h1 + .lead,
+.text-center h2 + .lead,
+.split__copy h2 + .stack { margin-top: .3rem; }
 
 .eyebrow {
   display: inline-flex;
@@ -154,6 +164,8 @@ strong { color: var(--ink-700); font-weight: 600; }
 .hero .eyebrow::before { display: none; }
 .split__copy .eyebrow::before { display: none; }
 .cta-band .eyebrow::before { display: none; }
+.text-center .eyebrow::before { display: none; }
+.contact-grid .eyebrow::before { display: none; }
 
 .lead { font-size: 1.15rem; color: var(--ink-600); }
 .section--navy .lead, .section--navy p { color: var(--on-dark-muted); }
